@@ -902,15 +902,36 @@ namespace SimpleJson
             string str = new string(json, index, charLength);
             if (str.IndexOf(".", StringComparison.OrdinalIgnoreCase) != -1 || str.IndexOf("e", StringComparison.OrdinalIgnoreCase) != -1)
             {
-                double number;
-                success = double.TryParse(new string(json, index, charLength), NumberStyles.Any, CultureInfo.InvariantCulture, out number);
-                returnNumber = number;
+                decimal @decimal;
+                success = decimal.TryParse(str, NumberStyles.Any, CultureInfo.InvariantCulture, out @decimal);
+                if (success)
+                {
+                    returnNumber = @decimal;
+                }
+                else
+                {
+                    double number;
+                    success = double.TryParse(str, NumberStyles.Any, CultureInfo.InvariantCulture, out number);
+                    returnNumber = number;
+                }
             }
             else
             {
                 long number;
-                success = long.TryParse(new string(json, index, charLength), NumberStyles.Any, CultureInfo.InvariantCulture, out number);
+                success = long.TryParse(str, NumberStyles.Any, CultureInfo.InvariantCulture, out number);
                 returnNumber = number;
+                if (!success)
+                {
+                    ulong @ulong;
+                    success = ulong.TryParse(str, NumberStyles.Any, CultureInfo.InvariantCulture, out @ulong);
+                    returnNumber = @ulong;
+                }
+                if (!success)
+                {
+                    decimal @decimal;
+                    success = decimal.TryParse(str, NumberStyles.Any, CultureInfo.InvariantCulture, out @decimal);
+                    returnNumber = @decimal;
+                }
             }
             index = lastIndex + 1;
             return returnNumber;
@@ -1407,13 +1428,16 @@ namespace SimpleJson
                         if (isValid && Uri.TryCreate(str, UriKind.RelativeOrAbsolute, out result))
                             return result;
 
-												return null;
+                        return null;
                     }
-                  
-									if (type == typeof(string))  
-										return str;
 
-									return Convert.ChangeType(str, type, CultureInfo.InvariantCulture);
+                    if (type == typeof(string))
+                        return str;
+
+                    if (type == typeof(byte[]))
+                        return Convert.FromBase64String(str);
+
+                    return Convert.ChangeType(str, type, CultureInfo.InvariantCulture);
                 }
                 else
                 {
@@ -1433,11 +1457,13 @@ namespace SimpleJson
             
             bool valueIsLong = value is long;
             bool valueIsDouble = value is double;
-            if ((valueIsLong && type == typeof(long)) || (valueIsDouble && type == typeof(double)))
+            bool valueIsUlong = value is ulong;
+            bool valueIsDecimal = value is decimal;
+            if ((valueIsLong && type == typeof(long)) || (valueIsDouble && type == typeof(double)) || (valueIsUlong && type == typeof(ulong)) || (valueIsDecimal && type == typeof(decimal)))
                 return value;
-            if ((valueIsDouble && type != typeof(double)) || (valueIsLong && type != typeof(long)))
+            if ((valueIsDouble && type != typeof(double)) || (valueIsLong && type != typeof(long)) || (valueIsUlong && type != typeof(ulong)) || (valueIsDecimal && type != typeof(decimal)))
             {
-                obj = type == typeof(int) || type == typeof(long) || type == typeof(double) || type == typeof(float) || type == typeof(bool) || type == typeof(decimal) || type == typeof(byte) || type == typeof(short)
+                obj = type == typeof(int) || type == typeof(long) || type == typeof(double) || type == typeof(float) || type == typeof(bool) || type == typeof(decimal) || type == typeof(byte) || type == typeof(short) || type == typeof(sbyte) || type == typeof(ushort) || type == typeof(uint) || type == typeof(ulong)
                             ? Convert.ChangeType(value, type, CultureInfo.InvariantCulture)
                             : value;
             }

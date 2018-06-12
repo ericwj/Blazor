@@ -1,4 +1,4 @@
-﻿// Copyright (c) .NET Foundation. All rights reserved.
+// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using Microsoft.AspNetCore.Blazor.Json;
@@ -34,11 +34,27 @@ namespace Microsoft.AspNetCore.Blazor.Test
         [InlineData("null", null)]
         [InlineData("\"My string\"", "My string")]
         [InlineData("123", 123L)] // Would also accept 123 as a System.Int32, but Int64 is fine as a default
-        [InlineData("123.456", 123.456d)]
         [InlineData("true", true)]
+        [InlineData("-9223372036854775808", long.MinValue)]
+        [InlineData("9223372036854775807", long.MaxValue)]
+        [InlineData("18446744073709551615", ulong.MaxValue)]
         public void CanDeserializePrimitivesFromJson(string json, object expectedValue)
         {
-            Assert.Equal(expectedValue, JsonUtil.Deserialize<object>(json));
+            var actualValue = JsonUtil.Deserialize<object>(json);
+            Assert.Equal(expectedValue, actualValue);
+        }
+
+        [Theory]
+        [InlineData("123.456")]
+        [InlineData("1.23456789012345678901")] 
+        [InlineData("12345678901234567890.1")]
+        [InlineData("-9223372036854775809")] // long.MinValue - 1
+        [InlineData("18446744073709551616")] // ulong.MaxValue + 1
+        public void CanDeserializeDecimalsFromJson(string json)
+        {
+            var expected = decimal.Parse(json);
+            var actual = JsonUtil.Deserialize<object>(json);
+            Assert.Equal(expected, actual);
         }
 
         [Fact]
@@ -55,11 +71,20 @@ namespace Microsoft.AspNetCore.Blazor.Test
                 BirthInstant = new DateTimeOffset(1825, 8, 6, 18, 45, 21, TimeSpan.FromHours(-6)),
                 Age = new TimeSpan(7665, 1, 30, 0),
                 Allergies = new Dictionary<string, object> { { "Ducks", true }, { "Geese", false } },
+
+                Byte = byte.MaxValue,
+                Bytes = new byte[] { 255 },
+                Long = long.MaxValue,
+                SByte = sbyte.MaxValue,
+                Short = short.MaxValue,
+                UInt = uint.MaxValue,
+                ULong = ulong.MaxValue,
+                UShort = ushort.MaxValue,
             };
 
             // Act/Assert
             Assert.Equal(
-                "{\"id\":1844,\"name\":\"Athos\",\"pets\":[\"Aramis\",\"Porthos\",\"D'Artagnan\"],\"hobby\":2,\"nicknames\":[\"Comte de la Fère\",\"Armand\"],\"birthInstant\":\"1825-08-06T18:45:21.0000000-06:00\",\"age\":\"7665.01:30:00\",\"allergies\":{\"Ducks\":true,\"Geese\":false}}",
+                "{\"id\":1844,\"name\":\"Athos\",\"pets\":[\"Aramis\",\"Porthos\",\"D'Artagnan\"],\"hobby\":2,\"nicknames\":[\"Comte de la Fère\",\"Armand\"],\"birthInstant\":\"1825-08-06T18:45:21.0000000-06:00\",\"age\":\"7665.01:30:00\",\"allergies\":{\"Ducks\":true,\"Geese\":false},\"sByte\":127,\"short\":32767,\"long\":9223372036854775807,\"byte\":255,\"uShort\":65535,\"uInt\":4294967295,\"uLong\":18446744073709551615,\"bytes\":[255]}",
                 JsonUtil.Serialize(person));
         }
 
@@ -67,7 +92,8 @@ namespace Microsoft.AspNetCore.Blazor.Test
         public void CanDeserializeClassFromJson()
         {
             // Arrange
-            var json = "{\"id\":1844,\"name\":\"Athos\",\"pets\":[\"Aramis\",\"Porthos\",\"D'Artagnan\"],\"hobby\":2,\"nicknames\":[\"Comte de la Fère\",\"Armand\"],\"birthInstant\":\"1825-08-06T18:45:21.0000000-06:00\",\"age\":\"7665.01:30:00\",\"allergies\":{\"Ducks\":true,\"Geese\":false}}";
+            var json =
+                "{\"id\":1844,\"name\":\"Athos\",\"pets\":[\"Aramis\",\"Porthos\",\"D'Artagnan\"],\"hobby\":2,\"nicknames\":[\"Comte de la Fère\",\"Armand\"],\"birthInstant\":\"1825-08-06T18:45:21.0000000-06:00\",\"age\":\"7665.01:30:00\",\"allergies\":{\"Ducks\":true,\"Geese\":false},\"sByte\":127,\"short\":32767,\"long\":9223372036854775807,\"byte\":255,\"uShort\":65535,\"uInt\":4294967295,\"uLong\":18446744073709551615,\"bytes\":\"/w==\"}";
 
             // Act
             var person = JsonUtil.Deserialize<Person>(json);
@@ -81,6 +107,15 @@ namespace Microsoft.AspNetCore.Blazor.Test
             Assert.Equal(new DateTimeOffset(1825, 8, 6, 18, 45, 21, TimeSpan.FromHours(-6)), person.BirthInstant);
             Assert.Equal(new TimeSpan(7665, 1, 30, 0), person.Age);
             Assert.Equal(new Dictionary<string, object> { { "Ducks", true }, { "Geese", false } }, person.Allergies);
+
+            Assert.Equal(byte.MaxValue, person.Byte);
+            Assert.Equal(new byte[] { 255 }, person.Bytes);
+            Assert.Equal(long.MaxValue, person.Long);
+            Assert.Equal(sbyte.MaxValue, person.SByte);
+            Assert.Equal(short.MaxValue, person.Short);
+            Assert.Equal(uint.MaxValue, person.UInt);
+            Assert.Equal(ulong.MaxValue, person.ULong);
+            Assert.Equal(ushort.MaxValue, person.UShort);
         }
 
         [Fact]
@@ -269,6 +304,17 @@ namespace Microsoft.AspNetCore.Blazor.Test
             public DateTimeOffset BirthInstant { get; set; }
             public TimeSpan Age { get; set; }
             public IDictionary<string, object> Allergies { get; set; }
+
+            public sbyte SByte { get; set; }
+            public short Short { get; set; }
+            public long Long { get; set; }
+
+            public byte Byte { get; set; }
+            public ushort UShort { get; set; }
+            public uint UInt { get; set; }
+            public ulong ULong { get; set; }
+
+            public byte[] Bytes { get; set; }
         }
 
         enum Hobbies { Reading = 1, Swordfighting = 2 }
